@@ -1,4 +1,4 @@
-ifneq ($(TARGET_PROVIDES_LIBAUDIO),true)
+ifeq ($(TARGET_DEVICE),infuse4g)
 
 LOCAL_PATH:= $(call my-dir)
 
@@ -24,10 +24,6 @@ LOCAL_C_INCLUDES += \
 	external/tinyalsa/include \
 	$(call include-path-for, audio-effects) \
 	$(call include-path-for, audio-utils)
-
-ifeq ($(BOARD_USES_FROYO_RILCLIENT),true)
-  LOCAL_CFLAGS += -DUSES_FROYO_RILCLIENT
-endif
 
 include $(BUILD_SHARED_LIBRARY)
 

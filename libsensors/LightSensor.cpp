@@ -21,14 +21,19 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/select.h>
+
+#include <linux/lightsensor.h>
+
 #include <cutils/log.h>
 
 #include "LightSensor.h"
 
+// #define LOG_NDEBUG 0
+
 /*****************************************************************************/
 
 LightSensor::LightSensor()
-    : SensorBase(NULL, "lightsensor-level"),
+    : SensorBase(NULL, "light_sensor"),
       mEnabled(0),
       mInputReader(4),
       mHasPendingEvent(false)
@@ -48,9 +53,19 @@ LightSensor::LightSensor()
 }
 
 LightSensor::~LightSensor() {
-    if (mEnabled) {
+     if (mEnabled) {
         enable(0, 0);
     }
+}
+
+int LightSensor::setInitialState() {
+    struct input_absinfo absinfo;
+    if (!ioctl(data_fd, EVIOCGABS(EVENT_TYPE_LIGHT), &absinfo)) {
+        // make sure to report an event immediately
+        mHasPendingEvent = true;
+        mPendingEvent.light = absinfo.value;
+    }
+    return 0;
 }
 
 int LightSensor::setDelay(int32_t handle, int64_t ns)
@@ -121,12 +136,11 @@ int LightSensor::readEvents(sensors_event_t* data, int count)
         int type = event->type;
         if (type == EV_ABS) {
             if (event->code == EVENT_TYPE_LIGHT) {
-                // Convert adc value to lux assuming:
-                // I = 10 * log(Ev) uA
-                // R = 47kOhm
-                // Max adc value 4095 = 3.3V
-                // 1/4 of light reaches sensor
-                mPendingEvent.light = powf(10, event->value * (330.0f / 4095.0f / 47.0f)) * 4;
+                if (event->value != -1) {
+                    ALOGV("LightSensor: event (value=%d)", event->value);
+                    // FIXME: not sure why we're getting -1 sometimes
+                    mPendingEvent.light = event->value;
+                }
             }
         } else if (type == EV_SYN) {
             mPendingEvent.timestamp = timevalToNano(event->time);
