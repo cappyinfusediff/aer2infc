@@ -741,10 +741,7 @@ int SecCamera::startPreview(void)
     int ret = fimc_v4l2_enum_fmt(m_cam_fd,m_preview_v4lformat);
     CHECK(ret);
 
-    if (m_camera_id == CAMERA_ID_BACK)
-        ret = fimc_v4l2_s_fmt(m_cam_fd, m_preview_width,m_preview_height,m_preview_v4lformat, 0);
-    else
-        ret = fimc_v4l2_s_fmt(m_cam_fd, m_preview_height,m_preview_width,m_preview_v4lformat, 0);
+    ret = fimc_v4l2_s_fmt(m_cam_fd, m_preview_width,m_preview_height,m_preview_v4lformat, 0);
     CHECK(ret);
 
     ret = fimc_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, MAX_BUFFERS);
@@ -756,12 +753,6 @@ int SecCamera::startPreview(void)
     ret = fimc_v4l2_s_ctrl(m_cam_fd,
                            V4L2_CID_CAMERA_CHECK_DATALINE, m_chk_dataline);
     CHECK(ret);
-
-    if (m_camera_id == CAMERA_ID_FRONT) {
-        /* VT mode setting */
-        ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_VT_MODE, m_vtmode);
-        CHECK(ret);
-    }
 
     /* start with all buffers in queue */
     for (int i = 0; i < MAX_BUFFERS; i++) {
@@ -829,20 +820,20 @@ int SecCamera::startPreview(void)
 
     m_flag_camera_start = 1;
 
-    ret = fimc_v4l2_s_parm(m_cam_fd, &m_streamparm);
-    CHECK(ret);
-
     if (m_camera_id == CAMERA_ID_FRONT) {
-        /* Blur setting */
-        ALOGV("m_blur_level = %d", m_blur_level);
-        ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_VGA_BLUR,
-                               m_blur_level);
+        /* Activate preview mode */
+        ALOGV("activate preview mode for front camera");
+        ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAM_PREVIEW_ONOFF,
+                               1);
         CHECK(ret);
     }
 
-#ifdef HAVE_FLASH
-    ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_FLASH_MODE, m_params->flash_mode);
+    ret = fimc_v4l2_s_parm(m_cam_fd, &m_streamparm);
     CHECK(ret);
+
+#ifdef HAVE_FLASH
+	ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_FLASH_MODE, m_params->flash_mode);
+	CHECK(ret);
 #endif
 
     // It is a delay for a new frame, not to show the previous bigger ugly picture frame.
@@ -913,14 +904,9 @@ int SecCamera::startRecord(void)
         setISO(ISO_MOVIE);
         setMetering(METERING_MATRIX);
         setBatchReflection();
-
-        ret = fimc_v4l2_s_fmt(m_cam_fd2, m_recording_width,
-                              m_recording_height, V4L2_PIX_FMT_NV12T, 0);
     }
-    else {
-        ret = fimc_v4l2_s_fmt(m_cam_fd2, m_recording_height,
-                              m_recording_width, V4L2_PIX_FMT_NV12T, 0);
-    }
+    ret = fimc_v4l2_s_fmt(m_cam_fd2, m_recording_width,
+                          m_recording_height, V4L2_PIX_FMT_NV12T, 0);
     CHECK(ret);
 
     ret = fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_FRAME_RATE,
@@ -1218,29 +1204,6 @@ int SecCamera::setSnapshotCmd(void)
     ret = fimc_v4l2_streamon(m_cam_fd);
     CHECK(ret);
 
-    // Additional calls needed for CE147
-
-    // GPS
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_GPS_LATITUDE, &gpsInfoLatitude);
-    CHECK(ret);
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_GPS_LONGITUDE, &gpsInfoLongitude);
-    CHECK(ret);
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_GPS_ALTITUDE, &gpsInfoAltitude);
-    CHECK(ret);
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_GPS_PROCESSINGMETHOD,
-        mExifInfo.gps_processing_method);
-    CHECK(ret);
-    unsigned long temp = m_gps_timestamp;
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_GPS_TIMESTAMP, &temp);
-    CHECK(ret);
-
-    // Time
-    time_t rawtime;
-    time(&rawtime);
-    struct tm *timeinfo = localtime(&rawtime);
-    ret = fimc_v4l2_s_ext_ctrl(m_cam_fd, V4L2_CID_CAMERA_EXIF_TIME_INFO, timeinfo);
-    CHECK(ret);
-
     // Orientation
     int orientation;
     switch (m_exif_orientation) {
@@ -1334,6 +1297,8 @@ int SecCamera::getExif(unsigned char *pExifDst, unsigned char *pThumbSrc)
 {
     JpegEncoder jpgEnc;
 
+    //FIXME:  Disabled thumbnails for now as they're always green
+#if 0
     ALOGV("%s : m_jpeg_thumbnail_width = %d, height = %d",
          __func__, m_jpeg_thumbnail_width, m_jpeg_thumbnail_height);
     if ((m_jpeg_thumbnail_width > 0) && (m_jpeg_thumbnail_height > 0)) {
@@ -1382,9 +1347,12 @@ int SecCamera::getExif(unsigned char *pExifDst, unsigned char *pThumbSrc)
         ALOGV("%s : enableThumb set to true", __func__);
         mExifInfo.enableThumb = true;
     } else {
+#endif
         ALOGV("%s : enableThumb set to false", __func__);
         mExifInfo.enableThumb = false;
+#if 0
     }
+#endif
 
     unsigned int exifSize;
 
@@ -1494,8 +1462,7 @@ int SecCamera::getSnapshotAndJpeg(unsigned char *yuv_buf, unsigned char *jpeg_bu
 
     ret = fimc_v4l2_enum_fmt(m_cam_fd,m_snapshot_v4lformat);
     CHECK(ret);
-    // FFC: Swap width and height
-    ret = fimc_v4l2_s_fmt_cap(m_cam_fd, m_snapshot_height, m_snapshot_width, m_snapshot_v4lformat);
+    ret = fimc_v4l2_s_fmt_cap(m_cam_fd, m_snapshot_width, m_snapshot_height, m_snapshot_v4lformat);
     CHECK(ret);
     ret = fimc_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, nframe);
     CHECK(ret);
@@ -1711,29 +1678,9 @@ int SecCamera::setAutofocus(void)
 
 int SecCamera::getAutoFocusResult(void)
 {
-    int af_result, count, ret;
+    int af_result = fimc_v4l2_g_ctrl(m_cam_fd, V4L2_CID_CAMERA_AUTO_FOCUS_RESULT_FIRST);
 
-    for (count = 0; count < FIRST_AF_SEARCH_COUNT; count++) {
-        ret = fimc_v4l2_g_ctrl(m_cam_fd, V4L2_CID_CAMERA_AUTO_FOCUS_RESULT_FIRST);
-        if (ret != AF_PROGRESS)
-            break;
-        usleep(AF_DELAY);
-    }
-
-    if ((count >= FIRST_AF_SEARCH_COUNT) || (ret != AF_SUCCESS)) {
-        ALOGV("%s : 1st AF timed out, failed, or was canceled", __func__);
-        af_result = 0;
-        goto finish_auto_focus;
-    }
-
-    af_result = 1;
     ALOGV("%s : AF was successful, returning %d", __func__, af_result);
-
-finish_auto_focus:
-    if (fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_FINISH_AUTO_FOCUS, 0) < 0) {
-        ALOGE("ERR(%s):Fail on V4L2_CID_CAMERA_FINISH_AUTO_FOCUS", __func__);
-        return -1;
-    }
     return af_result;
 }
 
@@ -2030,8 +1977,8 @@ int SecCamera::setFlashMode(int flash_mode)
     }
 
     if (m_params->flash_mode != flash_mode) {
-        m_params->flash_mode = flash_mode;
         if (m_flag_camera_start) {
+            m_params->flash_mode = flash_mode;
             if (fimc_v4l2_s_ctrl(m_cam_fd, V4L2_CID_CAMERA_FLASH_MODE, flash_mode) < 0) {
                 ALOGE("ERR(%s):Fail on V4L2_CID_CAMERA_FLASH_MODE", __func__);
                 return -1;
@@ -3022,7 +2969,8 @@ void SecCamera::setExifChangedAttribute()
     //2 0th IFD Exif Private Tags
     //3 Exposure Time
     int shutterSpeed = fimc_v4l2_g_ctrl(m_cam_fd,
-                                            V4L2_CID_CAMERA_GET_SHT_TIME);
+                                            V4L2_CID_CAMERA_EXIF_EXPTIME);
+
     /* TBD - front camera needs to be fixed to support this g_ctrl,
        it current returns a negative err value, so avoid putting
        odd value into exif for now */
@@ -3036,7 +2984,8 @@ void SecCamera::setExifChangedAttribute()
     mExifInfo.exposure_time.den = (uint32_t)(1000000 / shutterSpeed);
 
     //3 ISO Speed Rating
-    int iso = fimc_v4l2_g_ctrl(m_cam_fd, V4L2_CID_CAMERA_GET_ISO);
+    int iso = fimc_v4l2_g_ctrl(m_cam_fd, V4L2_CID_CAMERA_EXIF_ISO);
+
     /* TBD - front camera needs to be fixed to support this g_ctrl,
        it current returns a negative err value, so avoid putting
        odd value into exif for now */
@@ -3084,6 +3033,7 @@ void SecCamera::setExifChangedAttribute()
     //3 Brightness
     mExifInfo.brightness.num = bv*EXIF_DEF_APEX_DEN;
     mExifInfo.brightness.den = EXIF_DEF_APEX_DEN;
+
     //3 Exposure Bias
     if (m_params->scene_mode == SCENE_MODE_BEACH_SNOW) {
         mExifInfo.exposure_bias.num = EXIF_DEF_APEX_DEN;

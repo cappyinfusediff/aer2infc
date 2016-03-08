@@ -46,29 +46,58 @@ __BEGIN_DECLS
  * The SENSORS Module
  */
 
-/* the GP2A is a binary proximity sensor that triggers around 5 cm on
+/* the CM3663 is a binary proximity sensor that triggers around 6 cm on
  * this hardware */
-#define PROXIMITY_THRESHOLD_GP2A  5.0f
+#define PROXIMITY_THRESHOLD_CM  6.0f
 
 /*****************************************************************************/
 
-#define AKM_DEVICE_NAME     "/dev/akm8973_aot"
+#define AKM_DEVICE_NAME     "/dev/akm8975"
+#define CM_DEVICE_NAME      "/dev/i2c11" // FIXME Proximity
+#define LS_DEVICE_NAME      "/dev/i2c11" // FIXME Lig
 
+/*
+    E/Sensors ( 2656): AkmSensor: processing event (type=0, code=0)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=8)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=3)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=4)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=5)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=0)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=1)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=2)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=6)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=7)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=9)
+    E/Sensors ( 2656): AkmSensor: processing event (type=0, code=0)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=8)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=3)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=4)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=5)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=0)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=1)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=2)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=6)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=7)
+    E/Sensors ( 2656): AkmSensor: processing event (type=2, code=9)
+*/
 
-#define EVENT_TYPE_ACCEL_X          ABS_X
-#define EVENT_TYPE_ACCEL_Y          ABS_Y
-#define EVENT_TYPE_ACCEL_Z          ABS_Z
+// for akm8975
+#define EVENT_TYPE_ACCEL_X          ABS_Y  //1
+#define EVENT_TYPE_ACCEL_Y          ABS_X  //0
+#define EVENT_TYPE_ACCEL_Z          ABS_Z  //2
+//#define EVENT_TYPE_ACCEL_STATUS     ABS_WHEEL //8
 
-#define EVENT_TYPE_YAW              REL_X
-#define EVENT_TYPE_PITCH            REL_Y
-#define EVENT_TYPE_ROLL             REL_Z
-#define EVENT_TYPE_ORIENT_STATUS    REL_WHEEL
+#define EVENT_TYPE_YAW              ABS_RX  //3
+#define EVENT_TYPE_PITCH            ABS_RY  //4
+#define EVENT_TYPE_ROLL             ABS_RZ  //5
+#define EVENT_TYPE_ORIENT_STATUS    ABS_WHEEL //8
 
-/* For AK8973iB */
-#define EVENT_TYPE_MAGV_X           ABS_X
-#define EVENT_TYPE_MAGV_Y           ABS_Y
-#define EVENT_TYPE_MAGV_Z           ABS_Z
+#define EVENT_TYPE_MAGV_X           ABS_RUDDER  // 6
+#define EVENT_TYPE_MAGV_Y           ABS_THROTTLE  // 7
+#define EVENT_TYPE_MAGV_Z           ABS_GAS  // 9
 
+#define EVENT_TYPE_TEMPERATURE      ABS_THROTTLE
+#define EVENT_TYPE_STEP_COUNT       ABS_GAS
 #define EVENT_TYPE_PROXIMITY        ABS_DISTANCE
 #define EVENT_TYPE_LIGHT            ABS_MISC
 
@@ -76,23 +105,21 @@ __BEGIN_DECLS
 #define EVENT_TYPE_GYRO_Y           REL_RX
 #define EVENT_TYPE_GYRO_Z           REL_RZ
 
-
-// 720 LSG = 1G
-#define LSG                         (720.0f)
-#define NUMOFACCDATA                8
+// 90 LSB = 1G for KR3DM
+#define LSB                         (90.0f)
+#define NUMOFACCDATA                (8.0f)
 
 // conversion of acceleration data to SI units (m/s^2)
 #define RANGE_A                     (2*GRAVITY_EARTH)
-#define RESOLUTION_A                (RANGE_A/(512))
-#define CONVERT_A                   (RANGE_A/(512))
+#define CONVERT_A                   (GRAVITY_EARTH / LSB / NUMOFACCDATA)
 #define CONVERT_A_X                 (CONVERT_A)
-#define CONVERT_A_Y                 (CONVERT_A)
-#define CONVERT_A_Z                 (CONVERT_A)
+#define CONVERT_A_Y                 (-CONVERT_A)
+#define CONVERT_A_Z                 (-CONVERT_A)
 
 // conversion of magnetic data to uT units
-#define CONVERT_M                   (1.0f/1000.0f)
+#define CONVERT_M                   (1.0f/16.0f)
 #define CONVERT_M_X                 (CONVERT_M)
-#define CONVERT_M_Y                 (CONVERT_M)
+#define CONVERT_M_Y                 (-CONVERT_M)
 #define CONVERT_M_Z                 (CONVERT_M)
 
 /* conversion of orientation data to degree units */
@@ -102,8 +129,8 @@ __BEGIN_DECLS
 #define CONVERT_O_R                 (CONVERT_O)
 
 // conversion of gyro data to SI units (radian/sec)
-#define RANGE_GYRO                  (2000.0f*(float)M_PI/180.0f)
-#define CONVERT_GYRO                ((70.0f / 1000.0f) * ((float)M_PI / 180.0f))
+#define RANGE_GYRO                  (500.0f*(float)M_PI/180.0f)
+#define CONVERT_GYRO                ((70.0f / 4000.0f) * ((float)M_PI / 180.0f))
 #define CONVERT_GYRO_X              (CONVERT_GYRO)
 #define CONVERT_GYRO_Y              (-CONVERT_GYRO)
 #define CONVERT_GYRO_Z              (CONVERT_GYRO)

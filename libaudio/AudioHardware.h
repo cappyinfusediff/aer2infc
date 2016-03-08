@@ -56,8 +56,8 @@ namespace android_audio_legacy {
 // Default audio output sample format
 #define AUDIO_HW_OUT_FORMAT (AudioSystem::PCM_16_BIT)
 // Kernel pcm out buffer size in frames at 44.1kHz
-#define AUDIO_HW_OUT_PERIOD_SZ 880
-#define AUDIO_HW_OUT_PERIOD_CNT 2
+#define AUDIO_HW_OUT_PERIOD_SZ 1024
+#define AUDIO_HW_OUT_PERIOD_CNT 4
 // Default audio output buffer size in bytes
 #define AUDIO_HW_OUT_PERIOD_BYTES (AUDIO_HW_OUT_PERIOD_SZ * 2 * sizeof(int16_t))
 
@@ -191,18 +191,9 @@ private:
     int             (*closeClientRILD) (HRilClient);
     int             (*isConnectedRILD) (HRilClient);
     int             (*connectRILD)     (HRilClient);
-#ifdef USES_FROYO_RILCLIENT
-    int             (*invokeOemRequestHookRaw) (HRilClient, char *, size_t);
-    int             (convertSoundType)    (SoundType);
-    int             (convertAudioPath)    (AudioPath);
-    int             (setCallVolume)       (HRilClient, SoundType, int);
-    int             (setCallAudioPath)    (HRilClient, AudioPath);
-    int             (setCallClockSync)    (HRilClient, SoundClockCondition);
-#else
     int             (*setCallVolume)   (HRilClient, SoundType, int);
     int             (*setCallAudioPath)(HRilClient, AudioPath);
     int             (*setCallClockSync)(HRilClient, SoundClockCondition);
-#endif
     void            loadRILD(void);
     status_t        connectRILDIfRequired(void);
     struct echo_reference_itfe *mEchoReference;
